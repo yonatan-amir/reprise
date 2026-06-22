@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reprise — Build &amp; Ship Plan</title>
+<style>
+  :root {
+    --ink: #211d19;
+    --muted: #6b625a;
+    --cream: #f7f3ee;
+    --surface: #ffffff;
+    --border: #e7ded4;
+    --coral: #e2674e;
+    --green: #3f7d56;
+    --green-bg: #eef6f0;
+    --red-bg: #faf0ed;
+    --shadow: 0 18px 50px rgba(34,29,25,.07);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--cream);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 56px 24px 96px; }
+
+  /* header */
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: .72rem; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--coral); border: 1px solid var(--coral); border-radius: 999px;
+    padding: 6px 14px; margin-bottom: 22px;
+  }
+  h1 { font-size: clamp(2.4rem, 6vw, 3.6rem); line-height: 1.02; letter-spacing: -.04em; margin: 0 0 12px; }
+  .tagline { font-size: 1.12rem; color: var(--muted); max-width: 38rem; margin: 0; }
+  .meta { margin-top: 18px; font-size: .82rem; color: var(--muted); }
+  .meta code { background: var(--surface); border: 1px solid var(--border); padding: 2px 7px; border-radius: 6px; }
+
+  /* sections */
+  section { margin-top: 48px; }
+  h2 {
+    font-size: 1.4rem; letter-spacing: -.02em; margin: 0 0 18px;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  h2 .n { font-size: .8rem; color: var(--coral); font-weight: 700; letter-spacing: .1em; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+    padding: 26px 28px; box-shadow: var(--shadow);
+  }
+
+  /* fixed-rule callout */
+  .callout {
+    background: #fff; border: 2px solid var(--coral); border-radius: 18px;
+    padding: 26px 28px; box-shadow: var(--shadow); position: relative;
+  }
+  .callout h2 { color: var(--coral); }
+  .callout p { margin: 0 0 14px; }
+  .callout ul { margin: 14px 0 0; padding-left: 0; list-style: none; }
+  .callout li { padding: 8px 0 8px 30px; position: relative; border-top: 1px solid var(--border); }
+  .callout li:before { content: "🔒"; position: absolute; left: 0; top: 8px; }
+  .callout strong { color: var(--ink); }
+
+  /* two-column scope */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 680px){ .cols { grid-template-columns: 1fr; } }
+  .col { border-radius: 16px; padding: 22px 24px; border: 1px solid var(--border); }
+  .col.in { background: var(--green-bg); border-color: #cfe5d6; }
+  .col.out { background: var(--red-bg); border-color: #f0d8d1; }
+  .col h3 { margin: 0 0 14px; font-size: .82rem; letter-spacing: .12em; text-transform: uppercase; }
+  .col.in h3 { color: var(--green); }
+  .col.out h3 { color: var(--coral); }
+  .col ul { margin: 0; padding-left: 0; list-style: none; }
+  .col li { padding: 6px 0 6px 24px; position: relative; font-size: .95rem; }
+  .col.in li:before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+  .col.out li:before { content: "✕"; position: absolute; left: 0; color: var(--coral); font-weight: 700; }
+
+  /* why list */
+  .why { list-style: none; margin: 0; padding: 0; }
+  .why li { padding: 12px 0; border-top: 1px solid var(--border); font-size: .96rem; }
+  .why li:first-child { border-top: none; padding-top: 0; }
+  .why b { color: var(--ink); }
+
+  /* architecture */
+  .layers { display: grid; gap: 12px; }
+  .layer { display: grid; grid-template-columns: 130px 1fr; gap: 16px; align-items: start;
+           border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; background: var(--surface); }
+  @media (max-width: 680px){ .layer { grid-template-columns: 1fr; gap: 4px; } }
+  .layer code { font-weight: 700; color: var(--coral); }
+  .layer span { font-size: .93rem; color: var(--muted); }
+
+  /* roadmap */
+  .road { display: grid; gap: 0; }
+  .step { display: grid; grid-template-columns: 64px 1fr; gap: 18px; padding: 18px 0; border-top: 1px solid var(--border); }
+  .step:first-child { border-top: none; }
+  .step .tag {
+    align-self: start; font-weight: 700; font-size: .8rem; letter-spacing: .06em;
+    color: #fff; background: var(--ink); border-radius: 8px; padding: 6px 0; text-align: center;
+  }
+  .step.done .tag { background: var(--green); }
+  .step h4 { margin: 0 0 4px; font-size: 1.02rem; }
+  .step p { margin: 0; font-size: .92rem; color: var(--muted); }
+
+  /* done box */
+  .done-box { background: var(--ink); color: #f3ece4; border-radius: 18px; padding: 28px 30px; }
+  .done-box h2 { color: #fff; }
+  .done-box b { color: #fff; }
+  .done-box .flow { font-size: 1.02rem; line-height: 1.9; }
+  .done-box .flow span { color: var(--coral); font-weight: 700; }
+
+  /* reality */
+  .reality { list-style: none; margin: 0; padding: 0; }
+  .reality li { padding: 10px 0 10px 28px; position: relative; border-top: 1px dashed var(--border); font-size: .95rem; }
+  .reality li:first-child { border-top: none; }
+  .reality li:before { content: "→"; position: absolute; left: 0; color: var(--coral); font-weight: 700; }
+
+  footer { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--border); font-size: .8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="badge">● Fixed Plan — do not change</div>
+  <h1>Reprise</h1>
+  <p class="tagline">A local, cross-platform desktop app that auto-versions your music projects and lets you A/B compare versions — so you never lose a take and can <em>hear</em> what changed between saves.</p>
+  <p class="meta">Working name (rename freely) · Windows + macOS · <code>Electron + React + TypeScript</code> · local, no cloud in v1</p>
+
+  <section>
+    <div class="callout">
+      <h2>⚠ The one rule that makes this work</h2>
+      <p>Four-plus half-learned stacks, plus music, DSP, and patchbay — all unfinished, because the plan kept changing whenever it got hard or a shinier idea appeared. <strong>The single thing that decides whether this ships is not changing the plan.</strong></p>
+      <p>When you feel the pull to switch the stack, add "just one more feature," learn a new language first, or rebuild it "properly in C++" — that pull is the exact thing that has cost you years. Re-read this instead of acting on it.</p>
+      <ul>
+        <li>Stack = <strong>Electron + React + TypeScript</strong>. NOT C++. NOT Rust. NOT Tauri.</li>
+        <li>Scope = the v1 list below. Nothing from "NOT v1" until v1 ships.</li>
+        <li>Method = <strong>build to learn</strong> — AI tutors, you understand every line. No "study first" gate.</li>
+        <li>One milestone at a time. Finish and run it before starting the next.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">01</span> Why Electron — why not C++</h2>
+    <div class="card">
+      <ul class="why">
+        <li><b>This app is I/O-bound, not CPU-bound.</b> It watches a folder (idle), copies a file on save (disk-bound), and plays a rendered audio file (the OS does that). No real-time audio — so C++ buys <b>zero</b> speed. The disk and sound hardware are the bottleneck, not your code.</li>
+        <li><b>You already know ~90% of it.</b> Electron = Node + Chromium. You have JS/TS, React, Node. The only new bits — main vs renderer, IPC, packaging — are about a day, learned while building.</li>
+        <li><b>Cross-platform is free.</b> Win + Mac from one codebase. A C++ GUI + hand-built React bridge is weeks of pain for no benefit.</li>
+        <li><b>C ≠ C++.</b> Comfort with C (42) doesn't transfer much, and "almost done with a course" ≠ "can ship a cross-platform C++ GUI+audio app." Multi-month gap, zero payoff here.</li>
+        <li><b>Where C++ does belong:</b> the long-term north star — patchbay's in-DAW plugin (real-time audio genuinely needs C++). Keep learning it on the side for that. Not for Reprise.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">02</span> v1 scope</h2>
+    <div class="cols">
+      <div class="col in">
+        <h3>Ships in v1</h3>
+        <ul>
+          <li>Pick folder(s) to watch (any DAW, both OSes)</li>
+          <li>Auto-snapshot a version on project-file change (debounced)</li>
+          <li>Attach an audio bounce + a note to a version</li>
+          <li>Version timeline per project</li>
+          <li>A/B audio player — two versions, level-matched, instant toggle</li>
+          <li>Restore a version</li>
+        </ul>
+      </div>
+      <div class="col out">
+        <h3>NOT v1 — later / the wall</h3>
+        <ul>
+          <li>Cloud sync, accounts, multi-device → v2</li>
+          <li>Plugin-chain capture &amp; reuse → patchbay</li>
+          <li>Cross-DAW conversion → patchbay (boss level)</li>
+          <li>Collaboration, payments, AI features</li>
+          <li>Auto-rendering bounces (impossible outside the DAW)</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">03</span> Architecture — keeps the long road open</h2>
+    <div class="layers">
+      <div class="layer"><code>src/core/</code><span>Pure TS, <b>no Electron/React imports</b>: versioning, hashing/dedup, data model. This decoupling lets you add cloud or swap the shell later without a rewrite.</span></div>
+      <div class="layer"><code>src/main/</code><span>Electron main process: file watching (chokidar), filesystem, SQLite, IPC. Thin — calls into core.</span></div>
+      <div class="layer"><code>src/renderer/</code><span>React UI only. Talks to main via IPC.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span> Data model</h2>
+    <div class="card">
+      <div class="layers">
+        <div class="layer"><code>Project</code><span>id · name · watchedPath</span></div>
+        <div class="layer"><code>Version</code><span>id · projectId · createdAt · storedFilePath · bouncePath? · note? · fileHash</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">05</span> Build roadmap</h2>
+    <div class="card">
+      <div class="road">
+        <div class="step"><div class="tag">M0</div><div><h4>Scaffold</h4><p>Electron + React + TS starter; a window opens. (e.g. <code>npm create @quick-start/electron@latest</code>)</p></div></div>
+        <div class="step"><div class="tag">M1</div><div><h4>Core</h4><p>Data model + SQLite read/write, tested standalone — no UI yet.</p></div></div>
+        <div class="step"><div class="tag">M2</div><div><h4>Watch</h4><p>Folder picker (Electron dialog) + chokidar; on change → snapshot file + write a Version.</p></div></div>
+        <div class="step"><div class="tag">M3</div><div><h4>UI</h4><p>Projects list → version timeline (read from DB via IPC).</p></div></div>
+        <div class="step"><div class="tag">M4</div><div><h4>Bounce + note</h4><p>Attach an audio file + a note to a version.</p></div></div>
+        <div class="step"><div class="tag">M5</div><div><h4>A/B player</h4><p>Web Audio — two sources, level-match, instant toggle. The killer feature.</p></div></div>
+        <div class="step"><div class="tag">M6</div><div><h4>Restore</h4><p>Copy a version back / reveal it in the folder.</p></div></div>
+        <div class="step"><div class="tag">M7</div><div><h4>Package</h4><p>electron-builder → Windows installer + Mac .dmg.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">06</span> Definition of done</h2>
+    <div class="done-box">
+      <h2>v1 is finished when…</h2>
+      <p class="flow">You can <span>point it at a folder</span> → <span>see versions auto-appear</span> when you save in your DAW → <span>attach a bounce</span> → <span>A/B two versions</span> in the app → <span>restore one</span> — packaged and running on Windows and Mac.</p>
+      <p style="margin:14px 0 0;font-size:.95rem;opacity:.85;">When that's true, v1 is DONE. Ship it. Only then consider v2.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">07</span> Why finishing this matters</h2>
+    <div class="card">
+      <ul class="reality">
+        <li>You become someone who <b>finishes</b> — the muscle missing under everything else.</li>
+        <li>Real, earned skill — and it closes the "can't work without AI" gap, because you build it.</li>
+        <li>A genuine portfolio piece that improves job odds — though it does not guarantee a job. Keep the job search running in parallel.</li>
+        <li>A real rung toward patchbay (the cloud/organization half), and a scaffold skill.</li>
+        <li>Remember the frame: the dream is <b>music</b>. This funds it — it isn't it.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    Reprise · build &amp; ship plan · <code>C:\Users\Jonat\projects\reprise\</code> · resume at M0 · this plan is fixed.
+  </footer>
+
+</div>
+</body>
+</html>
