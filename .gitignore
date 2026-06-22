@@ -1,0 +1,15 @@
+# Local Claude config (machine-specific)
+
+.claude/settings.local.json
+
+# Dependencies & build output (created when we scaffold)
+
+node_modules/
+dist/
+out/
+*.log
+
+# OS junk
+
+.DS_Store
+Thumbs.db
