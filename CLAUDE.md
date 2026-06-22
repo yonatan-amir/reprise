@@ -5,8 +5,8 @@
 > Do **not** re-open settled decisions (stack, scope). The thinking is done; the job now is *doing*.
 
 ## Current status — resume point
-- **As of 2026-06-19:** plan is fixed and written; project folder + docs created. **Build not started.**
-- **▶ Resume at milestone M0** (scaffold Electron + React + TS so a window opens). See PLAN.md → "Build roadmap."
+- **As of 2026-06-22:** **M0 done** — electron-vite scaffold (Electron + React + TS) installed; `npm run dev` opens a window. App lives at repo root (`src/main`, `src/preload`, `src/renderer`).
+- **▶ Resume at milestone M1** (core: data model + SQLite read/write, tested standalone, no UI). See PLAN.md → "Build roadmap."
 - Update this line at the end of each milestone (e.g. "M2 done, resume at M3").
 
 ## What this is
