@@ -1,7 +1,7 @@
 # Reprise — Build & Ship Plan (FIXED)
 
 **One line:** A local, cross-platform (Windows + macOS) desktop app that auto-versions your
-music projects and lets you A/B compare versions — so you never lose a take and can *hear*
+music projects and lets you A/B compare versions — so you never lose a take and can _hear_
 what changed between saves.
 
 > "Reprise" is a working name (musical term: a repeat). Rename it freely. **The plan does not change. The name can.**
@@ -19,6 +19,7 @@ first, or rebuild it "properly in C++" — **that pull is the exact thing that h
 years.** Re-read this section instead of acting on it.
 
 **Locked. Not up for re-litigation:**
+
 - Stack = **Electron + React + TypeScript.** NOT C++. NOT Rust. NOT Tauri.
 - Scope = the v1 list below. Nothing from "NOT v1" gets added until v1 ships.
 - Method = **build to learn** (AI as tutor, you understand every line). No "study first" gate.
@@ -38,7 +39,7 @@ years.** Re-read this section instead of acting on it.
   a hand-built React bridge is weeks of pain for no benefit.
 - **C is real (42), but C ≠ C++**, and "almost done with a C++ course" ≠ "can ship a
   cross-platform C++ GUI+audio app." Multi-month gap, zero payoff for this app.
-- **Where C++ DOES belong:** the long-term north star — *patchbay's* in-DAW plugin (real-time
+- **Where C++ DOES belong:** the long-term north star — _patchbay's_ in-DAW plugin (real-time
   audio genuinely needs C++). Keep learning C++ on the side for THAT. It is not part of Reprise.
 
 ---
@@ -46,6 +47,7 @@ years.** Re-read this section instead of acting on it.
 ## v1 — what ships (and nothing more)
 
 **IN:**
+
 - Pick folder(s) to watch (handles any DAW / both OSes — you point it at where projects live)
 - Auto-snapshot a version when a project file changes (debounced)
 - Attach an audio bounce + a note to a version (manual)
@@ -54,6 +56,7 @@ years.** Re-read this section instead of acting on it.
 - Restore a version
 
 **NOT v1 (the wall / later — do NOT add now):**
+
 - Cloud sync, accounts, multi-device → v2
 - Plugin-chain capture, chain reuse, cross-DAW conversion → patchbay (the boss level)
 - Collaboration, payments, AI features
