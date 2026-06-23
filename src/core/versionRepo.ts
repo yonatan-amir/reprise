@@ -1,4 +1,4 @@
-import { randomUUID, UUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
 import { type Version, type VersionInput, VersionInputSchema, VersionSchema } from './types'
 
@@ -36,7 +36,7 @@ fileHash)
 }
 
 /** List every version, newest-inserted order not guaranteed (we'll sort when it matters). */
-export function listVersionsForProject(db: DatabaseSync, projectId: UUID): Version[] {
+export function listVersionsForProject(db: DatabaseSync, projectId: string): Version[] {
   const rows = db
     .prepare(
       'SELECT id, projectId, createdAt, storedFilePath, bouncePath, description, fileHash FROM versions WHERE projectId = ? ORDER BY createdAt DESC'
@@ -46,7 +46,7 @@ export function listVersionsForProject(db: DatabaseSync, projectId: UUID): Versi
 }
 
 /** Get one version by id, or null if there's no match. */
-export function getVersion(db: DatabaseSync, id: UUID): Version | null {
+export function getVersion(db: DatabaseSync, id: string): Version | null {
   const row = db
     .prepare(
       'SELECT id, projectId, createdAt, storedFilePath, bouncePath, description, fileHash FROM versions WHERE id = ?'

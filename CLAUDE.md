@@ -6,8 +6,8 @@
 
 ## Current status — resume point
 
-- **As of 2026-06-22:** **M0 done** — electron-vite scaffold (Electron + React + TS) installed; `npm run dev` opens a window. App lives at repo root (`src/main`, `src/preload`, `src/renderer`).
-- **▶ Resume at milestone M1** (core: data model + SQLite read/write, tested standalone, no UI). See PLAN.md → "Build roadmap."
+- **As of 2026-06-23:** **M1 done** — `src/core` data model (Zod schemas, types derived via `z.infer`) + SQLite read/write (`node:sqlite`) through `projectRepo`/`versionRepo`; 13 passing tests in `tests/core`, no UI. Tactical choices logged in `DECISIONS.md`.
+- **▶ Resume at milestone M2** (Watch: folder picker via Electron dialog + chokidar; on file change → snapshot file + write a Version). See PLAN.md → "Build roadmap."
 - Update this line at the end of each milestone (e.g. "M2 done, resume at M3").
 
 ## What this is
@@ -41,7 +41,7 @@ It is the buildable cloud/organization half of the user's bigger "patchbay" idea
 ## Data model
 
 - `Project { id, name, watchedPath }`
-- `Version { id, projectId, createdAt, storedFilePath, bouncePath?, note?, fileHash }`
+- `Version { id, projectId, createdAt, storedFilePath, bouncePath?, description?, fileHash }`
 
 ## Conventions
 

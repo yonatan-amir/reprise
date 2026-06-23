@@ -37,3 +37,15 @@
 - **Data model = Zod schemas as the single source of truth.** TS types are *derived* with
   `z.infer<typeof Schema>` (write the shape once). Schemas double as runtime validators at
   boundaries (IPC, file input) per the "validate at boundaries" rule.
+- **Field rename: `Version.note` → `Version.description`.** Clearer name; tactical (no scope/stack
+  change). PLAN.md + CLAUDE.md data model synced.
+- **Optional fields use `.nullish()`; "absent" is stored as `NULL`.** SQLite/`node:sqlite` *throws*
+  on binding `undefined`, and reads a missing column back as `null`. So the repo coalesces absent
+  optionals to `null` once at object construction (`?? null`), and the schema accepts `null`.
+- **IDs are typed `string`, not `node:crypto`'s `UUID` template type.** The *value* is a real UUID
+  (enforced at runtime by `z.uuid()`); the *static type* is plain `string` to match the rest of the
+  system. The template type doesn't truly validate a UUID and only causes friction. Lesson:
+  annotate boundaries with the type the system speaks; let runtime validation guarantee format.
+- **No pre-insert existence check for id collisions.** v4 collision probability is effectively zero,
+  and `id TEXT PRIMARY KEY` makes the DB reject a dupe atomically anyway. Enforce uniqueness with a
+  DB constraint, never a SELECT-then-INSERT race.

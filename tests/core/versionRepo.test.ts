@@ -78,4 +78,18 @@ describe('versionRepo', () => {
     const orphanProjectId = '00000000-0000-4000-8000-000000000000' // valid UUID, no such project
     expect(() => createVersion(db, versionInput(orphanProjectId, 'x'))).toThrow()
   })
+
+  it('only returns versions for the requested project', () => {
+    const db = openDatabase(':memory:')
+    const project1 = createProject(db, { name: 'projectA', watchedPath: '/pa' })
+    const project2 = createProject(db, { name: 'projectB', watchedPath: '/pb' })
+    createVersion(db, versionInput(project1.id, 'a'))
+    createVersion(db, versionInput(project2.id, 'b'))
+    createVersion(db, versionInput(project2.id, 'c'))
+
+    const p1Versions = listVersionsForProject(db, project1.id)
+    expect(p1Versions).toHaveLength(1)
+    expect(p1Versions.every((v) => v.projectId == project1.id)).toBe(true)
+    expect(listVersionsForProject(db, project2.id)).toHaveLength(2)
+  })
 })

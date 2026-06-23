@@ -76,7 +76,7 @@ years.** Re-read this section instead of acting on it.
 ## Data model
 
 - `Project { id, name, watchedPath }`
-- `Version { id, projectId, createdAt, storedFilePath, bouncePath?, note?, fileHash }`
+- `Version { id, projectId, createdAt, storedFilePath, bouncePath?, description?, fileHash }`
 
 ---
 
