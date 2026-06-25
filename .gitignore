@@ -1,7 +1,7 @@
 # Local Claude config (machine-specific)
 
 .claude/settings.local.json
-
+plan.html
 # Dependencies & build output (created when we scaffold)
 
 node_modules/

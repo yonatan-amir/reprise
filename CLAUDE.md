@@ -6,8 +6,14 @@
 
 ## Current status — resume point
 
-- **As of 2026-06-23:** **M1 done** — `src/core` data model (Zod schemas, types derived via `z.infer`) + SQLite read/write (`node:sqlite`) through `projectRepo`/`versionRepo`; 13 passing tests in `tests/core`, no UI. Tactical choices logged in `DECISIONS.md`.
-- **▶ Resume at milestone M2** (Watch: folder picker via Electron dialog + chokidar; on file change → snapshot file + write a Version). See PLAN.md → "Build roadmap."
+- **As of 2026-06-24:** **M1 done** (13 passing `tests/core`). **M2 (Watch) fully designed — see
+  `DECISIONS.md` → "M2 — Watch" for the locked spec.** Big shift: storage is now an **INDEX (pointers
+  to real files, no copying)**, not a copy-vault — this overrides the "snapshot to app storage"
+  wording below and in PLAN.md.
+- **▶ Resume mid-M2: schema refactor first, then build.** Next concrete task = rewrite
+  `src/core/types.ts` to the index schema (below), then `db.ts` + repos + new `watchRootRepo` +
+  update M1 tests → then `fileHash` (2a, SHA-256) → then wire chokidar (one watcher per root,
+  `awaitWriteFinish`, extension filter). User writes the code; review per `reprise-working-mode`.
 - Update this line at the end of each milestone (e.g. "M2 done, resume at M3").
 
 ## What this is
@@ -38,10 +44,12 @@ It is the buildable cloud/organization half of the user's bigger "patchbay" idea
 - `src/main/` — Electron main: chokidar file-watch, fs, SQLite, IPC. Thin; calls core.
 - `src/renderer/` — React UI; talks to main via IPC.
 
-## Data model
+## Data model (M2 index model — see `DECISIONS.md` for rationale)
 
-- `Project { id, name, watchedPath }`
-- `Version { id, projectId, createdAt, storedFilePath, bouncePath?, description?, fileHash }`
+- `WatchRoot { id, path }` — the only absolute path; online/offline status is runtime-derived, not stored
+- `Project { id, name }` — `name` unique (the grouping key = conservative filename base)
+- `Version { id, projectId, watchRootId, sourceRelativePath, fileHash, savedAt, versionLabel?, sourceMissing, bouncePath?, description? }`
+  - `sourceRelativePath` = pointer relative to its root (not a copy); `savedAt` = file `mtime` (caller-supplied), not discovery time; `sourceMissing` soft-flags an on-disk deletion. `bouncePath?`/`description?` are M4 (and `bouncePath` becomes one-to-many then).
 
 ## Conventions
 

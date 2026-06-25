@@ -19,21 +19,32 @@ export function openDatabase(dbPath: string): DatabaseSync {
   db.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id          TEXT PRIMARY KEY,
-        name        TEXT NOT NULL,
-        watchedPath TEXT NOT NULL
+        name        TEXT NOT NULL UNIQUE
       );
 
       CREATE TABLE IF NOT EXISTS versions (
-        id             TEXT PRIMARY KEY,
-        projectId      TEXT NOT NULL,
-        createdAt      INTEGER NOT NULL,
-        storedFilePath TEXT NOT NULL,
-        bouncePath     TEXT,
-        description    TEXT,
-        fileHash       TEXT NOT NULL,
-        FOREIGN KEY (projectId) REFERENCES projects(id)
+        id                  TEXT PRIMARY KEY,
+        projectId           TEXT NOT NULL,
+        fileHash            TEXT NOT NULL,
+        savedAt             INTEGER NOT NULL,
+        versionLabel        TEXT,
+        sourceMissing       INTEGER NOT NULL DEFAULT 0,
+        bouncePath          TEXT,
+        description         TEXT,
+        sourceRelativePath  TEXT NOT NULL,
+        watchRootId         TEXT NOT NULL,
+
+        
+        FOREIGN KEY (projectId) REFERENCES projects(id),
+        FOREIGN KEY (watchRootId) REFERENCES watch_roots(id),
+        UNIQUE (watchRootId, sourceRelativePath)
       );
-    `)
+
+      CREATE TABLE IF NOT EXISTS watch_roots (
+        id            TEXT PRIMARY KEY,
+        path          TEXT NOT NULL UNIQUE
+      );
+  `)
 
   return db
 }
