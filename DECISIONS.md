@@ -163,6 +163,77 @@
   **known path + identical hash → SKIP** (DAW touched the file without a real edit). Deletion while
   the drive is online → remove/mark that Version; drive offline → grey out, keep. `fileHash` (2a) is
   the foundation this whole branch depends on.
+- **Base-extraction spec (LOCKED) — the marker allow-list + the save convention.** `extractProjectBase`
+  is a *coward*: it strips a trailing version marker **only** when it's unmistakable, and **never**
+  guesses. The grouping contract: *no naming mistake can cause data loss or a silent wrong-merge —
+  worst case is over-split, which M3 fixes by hand.*
+  - **STRIP these explicit trailing markers** (case-insensitive, any separator `_ - . space`):
+    `v3` / `_v3` / `-v3` / ` v3` (a `v` followed by digits) · `ver 3` · `version 3` · `(3)`
+    (parenthesized number = the OS "duplicate file" convention) · `copy` / `copy 2`.
+  - **LEAVE ALONE (never strip):** bare trailing numbers (`song 3`, `song3`), years/dates
+    (`song 2024`), and **leading** numbers (`34song`). These are too ambiguous — stripping them risks
+    wrong-merging `song 2023` with `song 2024`, the cardinal sin.
+  - **Then normalize** what's left: lowercase + collapse/trim separators, so `Song`, `song `, `song`
+    all match. The result is the Project key (same key → same Project).
+  - **Worked cases:** `afterblue_lost_in_open_water v3` → `afterblue lost in open water` (groups with
+    `v4`); `song23`/`song24` → stay separate ✅; `untitled1`/`untitled2` → stay separate ✅;
+    `34song`/`35song` → stay separate (over-split if meant as versions — safe, mergeable in M3);
+    `Untitled`×5 → group into one messy-but-visible-and-splittable project (accepted residual risk).
+  - **The user's lever = the save convention (to be surfaced in-app later):** keep the song name
+    *identical* across versions; mark the version as a trailing `v` suffix (`afterblue v2`,
+    `afterblue_v3`); avoid leading/bare-number versioning (`34song`, `song 3`); give unrelated songs
+    distinct names (don't both be `Untitled`). Follow it → rock-solid grouping; ignore it → at worst
+    over-split. The algorithm handles the unambiguous; the user steers the rest (same philosophy as
+    "pick a tighter watch root for less noise"). Manual merge/split UI = M3.
+- **Base-extraction (real-data revision, ~980 of the user's files).** Strip Ableton's
+  ` [YYYY-MM-DD HHMMSS]` backup timestamp; treat `v<n>` as a **cut point** (free text + timestamp follow
+  it — `V21 flatten`, `v25 ... right direction now`, decimals like `V2.1`/`V0.1.1.1`), keeping the prefix
+  as the base. Algorithm: lowercase → strip extension → cut at first version marker → (if none) strip
+  trailing ` [timestamp]` → normalize. **Principle: UNIVERSAL patterns → algorithm; PERSONAL conventions
+  → user config.** Timestamp + `v<n>` are universal (every Ableton user emits them). The user's client
+  prefix (`afterblue -`) and ordering prefixes (`2.`/`10.`) are personal → **deferred** to a future
+  user-configurable prefix strip-list + a client/project organization view (**v2+, NOT v1**). Until then
+  they over-split safely (visible, mergeable in M3) — never wrong-merge.
+- **Multi-DAW audit (Cubase `.cpr` + Logic `.logicx` in the user's real library).**
+  - **Cubase auto-backups = `.bak` (and `.tmp`) — EXCLUDE from the watcher's allow-list.** Cubase emits
+    rolling `Name-02.bak … Name-10.bak` by the dozen; they're not openable projects, just noise. Brick 3
+    (the watcher) must filter these out.
+  - **Cubase versioning = trailing `-NN`** (its "Save New Version": `Afterblue-01.cpr`,
+    `studio-02 Export Ready.cpr`) — a *cut point* like Ableton's `V<n>`. **DECIDED: NOT stripped.** A
+    `-\d` cut would carry a wrong-merge risk (a name genuinely ending `-<digits>` like `tr-808` vs
+    `tr-909` would fuse to `tr`) — and wrong-merge is the cardinal sin. So pure-`-NN` Cubase saves
+    **over-split** (preserved as-is) and the user merges them manually in M3. (Combined names like
+    `... Comped V2-01` still group, because the leftmost `V`-cut eats the `-01` too.) Revisit only if
+    real users want it — and then with a tighter guard.
+  - **Logic `.logicx` is a PACKAGE, not a file** — a directory on Windows, a double-click bundle on macOS
+    (like `.app`). Brick 2 (name parsing) handles it fine; the file-vs-package complexity is entirely a
+    **brick-3** concern (hashing + watching a directory-as-a-unit; Logic churns many internal files per
+    save). No-separator markers seen here too (`turn out the lightsV2`, `Project0`) → over-split, accepted.
+  - **OPEN SCOPE QUESTION (decide at brick 3, NOT now): does v1 track Logic packages?** Strong product
+    case — Ableton+FL+Logic are the big three; skipping Logic misses ~⅓ of users (NOT the PLAN "NOT v1"
+    list, so fair to revisit). Tension: packages need watch-the-folder-as-a-unit + how-to-hash-a-dir,
+    which the locked "file-based first" deferral was avoiding. Resolve when designing the watcher.
+- **FORWARD-NOTE (M3 grouping, NOT M2): per-DAW version/backup recognition using filename pattern +
+  folder layout.** Insight: machine-generated markers (Cubase `-NN`, Ableton `[timestamp]`) are
+  *deterministic* — the DAW writes them identically every time, no user input — so a per-DAW rule can
+  *trust* them, unlike a hand-typed `v3 mastered`. Folder layout corroborates (Ableton → `Backup/`
+  subfolder; Cubase → `.bak` beside the project; Logic → inside the `.logicx` package). Pattern +
+  location together = wrong-merge-proof. This is the safe home for Cubase `-NN` auto-grouping (via
+  sibling/base corroboration, since pure single-filename brick 2 lacks the file-set context) AND for
+  telling *backups to ignore* (`.bak`) from *real prior states* (Ableton `[timestamp]`). Keeps brick 2
+  pure + safe; the DAW-aware intelligence lives in the grouping layer.
+- **In-app file operations (merge/rename/delete) — split into safe-now vs destructive-later.**
+  - **Index merge/split (v1, M3): non-destructive.** Because storage is an index of pointers, merging
+    two over-split groups is a DB reassignment — files never move or get renamed. This is the safety net
+    that makes every "over-split is fine" decision valid. Reveal-in-Finder + open-in-DAW + Restore round
+    out v1's "act from inside the app" without mutating files.
+  - **Destructive in-app CRUD (rename/delete real files) = planned v1.1, NOT v1.** User wants full
+    in-platform file management (find/rename/delete lost versions without leaving the app) — a good
+    product direction, but it changes PLAN's locked v1 mutation scope (*Restore only*) and is
+    *destructive* (data-loss liability → needs confirm/undo/trash). It also **depends on the watcher +
+    hash-reconciliation existing and being solid** (an in-app rename fires `unlink`+`add` that must
+    reconcile to the same version, not delete+new). So it's sequenced as the first v1.1 feature: built
+    deliberately on a proven engine, after v1 core ships. Deferring it protects the finish-one-thing goal.
 - **Version timeline timestamp = the file's `mtime`, NOT discovery time.** On initial index we read
   the file's last-modified time via `fs.stat` and use *that* as the version's timeline timestamp, so
   files saved years ago keep their real dates and the timeline orders correctly (stamping
