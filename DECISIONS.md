@@ -234,6 +234,17 @@
     hash-reconciliation existing and being solid** (an in-app rename fires `unlink`+`add` that must
     reconcile to the same version, not delete+new). So it's sequenced as the first v1.1 feature: built
     deliberately on a proven engine, after v1 core ships. Deferring it protects the finish-one-thing goal.
+- **v1 DAW support = the seven SINGLE-FILE formats; packages deferred.** The watcher's allow-list
+  (`isProjectFile` / `PROJECT_EXTENSIONS`) covers: `.als` (Ableton), `.flp` (FL Studio), `.cpr` (Cubase),
+  `.rpp` (Reaper), `.song` (Studio One), `.ptx` (Pro Tools), `.bwproject` (Bitwig). Adding a single-file
+  DAW is just one more string → near-zero cost, so support them all. **Logic `.logicx` + GarageBand
+  `.band` are packages (directories)** → NOT in v1's first list: the blocker isn't the predicate (a string
+  match would return true trivially) but the *watcher* — chokidar fires on the package's INNER files (never
+  the `.logicx` folder itself), and `hashFile` can't stream a directory. So the extension only earns its
+  place alongside package-watching code (recognize package → treat folder as a unit → ignore internal churn
+  → hash specially). **Whether v1 includes package-watching = the open scope decision, made when designing
+  the watcher (brick 3).** Allow-list = the filter; anything not listed (`.bak`, `.rpp-bak`, `.wav`, …) is
+  rejected implicitly — no explicit exclude list needed.
 - **Version timeline timestamp = the file's `mtime`, NOT discovery time.** On initial index we read
   the file's last-modified time via `fs.stat` and use *that* as the version's timeline timestamp, so
   files saved years ago keep their real dates and the timeline orders correctly (stamping
