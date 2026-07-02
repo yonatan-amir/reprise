@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { decideVersionAction } from '../../src/core/decideVersionAction'
+import { decideVersionAction } from '../../../src/core/versioning/decideVersionAction'
 
 describe('decideVersionAction', () => {
   it('add', () => {

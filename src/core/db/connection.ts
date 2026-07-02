@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
-
+import { drizzle } from 'drizzle-orm/node-sqlite'
 /**
  * Open (or create) the SQLite database at `dbPath` and make sure the tables exist.
  *
@@ -8,15 +8,15 @@ import { DatabaseSync } from 'node:sqlite'
  *   - the Electron app (later) passes app.getPath('userData') + '/reprise.db'
  *   - tests pass ':memory:' — a throwaway database that lives only in RAM
  */
-export function openDatabase(dbPath: string): DatabaseSync {
-  const db = new DatabaseSync(dbPath)
+export function openDatabase(dbPath: string): Db {
+  const sqlite = new DatabaseSync(dbPath)
 
   // SQLite ships with foreign keys OFF — turn them on so a version can't point
   // at a project that doesn't exist.
-  db.exec('PRAGMA foreign_keys = ON;')
+  sqlite.exec('PRAGMA foreign_keys = ON;')
 
   // Idempotent schema: safe to run on every startup ("IF NOT EXISTS").
-  db.exec(`
+  sqlite.exec(`
       CREATE TABLE IF NOT EXISTS projects (
         id          TEXT PRIMARY KEY,
         name        TEXT NOT NULL UNIQUE
@@ -29,6 +29,7 @@ export function openDatabase(dbPath: string): DatabaseSync {
         savedAt             INTEGER NOT NULL,
         versionLabel        TEXT,
         sourceMissing       INTEGER NOT NULL DEFAULT 0,
+        isBackup            INTEGER NOT NULL DEFAULT 0,
         bouncePath          TEXT,
         description         TEXT,
         sourceRelativePath  TEXT NOT NULL,
@@ -46,5 +47,7 @@ export function openDatabase(dbPath: string): DatabaseSync {
       );
   `)
 
-  return db
+  return drizzle({ client: sqlite })
 }
+
+export type Db = ReturnType<typeof drizzle>

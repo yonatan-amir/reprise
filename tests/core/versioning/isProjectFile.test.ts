@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isProjectFile } from '../../src/core/isProjectFile'
+import { isProjectFile } from '../../../src/core/versioning/isProjectFile'
 
 const cases: [string, boolean][] = [
   ['song.als', true], // Ableton

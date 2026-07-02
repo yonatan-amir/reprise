@@ -14,10 +14,17 @@
 - **`fileHash` (2a) DONE** (TDD, committed): `hashBuffer` (one-shot, `node:crypto`) + streamed
   `hashFile` (read-stream → `update`/`digest`), validated against canonical SHA-256 vectors. **22
   `tests/core` passing**, typecheck + lint clean.
-- **▶ Resume at chokidar wiring (2b).** Wire the file watcher: one watcher per `WatchRoot`,
-  `awaitWriteFinish` (don't hash a half-written save), extension filter (DAW project files only).
-  On a settled change → `hashFile` → upsert a `Version`. User types the code; review per
-  `reprise-working-mode`.
+- **M2 pure bricks DONE** (all TDD, committed & pushed, 26 `tests/core` passing, typecheck + lint clean):
+  `decideVersionAction` (add/update/skip), `extractProjectBase` (DAW-aware project grouping — validated
+  against ~1,966 real files; Ableton `[timestamp]` strip + `v<n>` cut-point + edge-trim; Cubase `-NN` and
+  client prefixes deliberately over-split), `isProjectFile` (extension allow-list gate — seven single-file
+  DAW formats). See `DECISIONS.md` → "M2 — Watch" for the (now extensively expanded) real-data spec.
+- **▶ Resume at brick 3 — the chokidar watcher** (`src/main`, integration not pure TDD). Ties the bricks
+  together: one watcher per `WatchRoot`, `awaitWriteFinish`, `isProjectFile` gate → `fs.stat` (mtime) +
+  `hashFile` → `decideVersionAction` → `extractProjectBase` → repo write. **Logic Pro IS required for v1
+  (user decision, release-blocking)** — so the watcher must handle BOTH single files AND packages
+  (`.logicx`/`.band` watched as an opaque folder-unit, hashed whole, internal churn debounced); design the
+  package approach first, before wiring. User types the code; review per `reprise-working-mode`.
 - Update this line at the end of each milestone (e.g. "M2 done, resume at M3").
 
 ## What this is

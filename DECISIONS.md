@@ -245,6 +245,16 @@
   → hash specially). **Whether v1 includes package-watching = the open scope decision, made when designing
   the watcher (brick 3).** Allow-list = the filter; anything not listed (`.bak`, `.rpp-bak`, `.wav`, …) is
   rejected implicitly — no explicit exclude list needed.
+- **DECIDED (user, release-blocking): Logic Pro IS in v1 — package-watching moves INTO M2's watcher.**
+  Supersedes the "packages deferred / fast-follow" lean above. Rationale: Logic is a top-3 DAW and the
+  user's primary one; shipping without it makes v1 half-useless to him, and it's not in PLAN's "NOT v1"
+  wall (that's cloud/plugin/collab). **v1 will not release without Logic.** Cost (accepted): the watcher
+  must handle TWO modes — single files *and* packages (watch the `.logicx`/`.band` folder as a unit,
+  debounce internal churn, hash the package as a whole). **Guardrail (keeps it bounded): treat the
+  package as an OPAQUE unit** — fingerprint to detect a real save, never parse Logic's internal format
+  (that would be a months-long rabbit hole; same opaque-blob rule as `.als`). GarageBand (`.band`,
+  also a package) likely rides along for free once package-watching exists. Exact package approach
+  (how to hash a directory, how to debounce internal saves) designed first thing at brick 3.
 - **Version timeline timestamp = the file's `mtime`, NOT discovery time.** On initial index we read
   the file's last-modified time via `fs.stat` and use *that* as the version's timeline timestamp, so
   files saved years ago keep their real dates and the timeline orders correctly (stamping
@@ -254,3 +264,140 @@
   latest save. **Schema impact (caught pre-refactor, as intended):** `createdAt` stops being
   repo-generated (`Date.now()`) and becomes **caller-supplied from `fs.stat().mtime`**; an optional
   `indexedAt = Date.now()` may be kept for internal bookkeeping but is not what the timeline shows.
+- **Spike finding (live, real Ableton on Windows, 2026-06-30 — brick-3 throwaway watcher).** Confirmed
+  against real saves: (1) a single save is a ~10-event **burst** — Ableton shuffles `AbletonTmp-*`
+  scratch files, then writes the real `.als` last → `awaitWriteFinish` + the `isProjectFile` gate
+  collapse it to the one event that matters; every temp/`Desktop.ini`/`.ico`/`addDir` was rejected by
+  the extension allow-list, 100% noise filtered. (2) **new project = `add`, overwrite = `change`** on
+  the `.als` — maps straight onto `decideVersionAction`'s two branches. (3) a **rename = `unlink` + `add`**
+  (no rename event) — exactly why hash-reconcile, not path, identifies a moved file. (4) Ableton **wraps
+  every project in its own `<name> Project/` folder**; the `.als` sits one level down, so the watcher
+  must be **recursive** (it is) — and note this folder is just a container around a real standalone
+  `.als` we can hash normally, *unlike* a Logic `.logicx` package where the folder itself is the project.
+- **Ableton `Backup/` files are KEPT and FLAGGED in M2 — the drawer UI stays M3.** *(Refines the
+  earlier "purely M3" note below; user decision 2026-06-30.)* Observed live: on overwrite, Ableton
+  auto-writes a timestamped copy of the *previous* save into a `Backup/` subfolder
+  (`test Project\Backup\test [2026-06-30 112036].als`). It's a real `.als`, so it passes `isProjectFile`.
+  **User call:** genuine prior versions = free history → don't discard, but don't clutter the main
+  timeline. **The M2 split:** the watcher *indexes* backups like any version AND tags each one with a new
+  `Version.isBackup` boolean (routing data the watcher can compute cheaply now, from the `Backup/` path
+  segment). The **segregation UI** (a separate "backups" drawer inside the project) stays **M3** — it just
+  reads the flag instead of re-deriving it. Why flag-in-M2 is free: the schema isn't persisted yet
+  (step 5 hasn't created a real `reprise.db`), so adding the column now costs nothing; adding it after
+  first launch would need a migration. Detection signal = a `Backup` path segment (Ableton); other DAWs'
+  backup conventions can extend `isBackupPath` later. Don't pull the drawer UI into the watcher.
+- **FORWARD-NOTE (M3, superseded above for the flag): original "purely M3" framing.** Kept for history:
+  the first call was to do *nothing* in M2 and detect backups entirely in M3 by folder layout + timestamp.
+  Revised to flag-in-M2 (above) so M3 sorts on a stored boolean rather than re-scanning paths.
+
+### Brick-3 (watcher) completion — ordered task list A→C (locked 2026-06-30)
+
+> The watcher's pure bricks (`fileHash`, `decideVersionAction`, `extractProjectBase`, `isProjectFile`)
+> are done. These are the remaining tasks to finish brick 3, in implementation order. Yonatan types;
+> Claude reviews. All core work is TDD with a `:memory:` db.
+
+- **Phase A — core data layer (TDD, prerequisites; do before any wiring):**
+  - **A1 `findWatchRootByPath(db, path)`** — mirror `getWatchRoot` with `WHERE path = ?`. Needed for
+    find-or-create on the WatchRoot; `path` is UNIQUE, so a 2nd launch calling `createWatchRoot` on the
+    same path would throw and the app wouldn't start.
+  - **A2 `clearVersionMissing(db, id)`** — exact mirror of `markVersionMissing` (`SET sourceMissing = 0`),
+    same return-the-row / throw-on-missing-id contract. Needed for resurrection: a flagged-missing file
+    whose drive returns hashes to `skip`, so without this the `sourceMissing` flag would never clear.
+  - **A3 schema: add `Version.isBackup` boolean** (default `0/false`) to `versions` table (`db.ts`),
+    `VersionSchema` + `VersionInputSchema` (`types.ts`, default `false` so existing inputs/tests are
+    unaffected), and `createVersion`'s INSERT. Free now because no real DB exists yet (see Backup note).
+  - **A4 `isBackupPath(relativePath)` core fn (TDD)** — `true` when a path segment equals `Backup`
+    (Ableton). The signal `recordUpsert` uses to set `isBackup`. Extension point for other DAWs later.
+- **Phase B — orchestration seam + plumbing (testable core, thin main):**
+  - **B7 `src/core/recordFileEvent.ts` (TDD)** — the orchestration, fs-free so it tests with `:memory:`:
+    - `recordUpsert(db, { watchRootId, sourceRelativePath, fileHash, savedAt }) → { action, version }`:
+      `findVersionByPath` → `decideVersionAction(fileHash, existing?.fileHash ?? null)`.
+      **add** → `base = extractProjectBase(basename(relPath)) || basename` (empty-base fallback, C3);
+      `findProjectByName(base) ?? createProject({ name: base })`; `isBackup = isBackupPath(relPath)`;
+      `createVersion(...)`; `action: 'added'`. **update** → `updateVersion(existing.id, fileHash, savedAt)`;
+      if `existing.sourceMissing` → `clearVersionMissing`; `action: 'updated'`. **skip** → if
+      `existing.sourceMissing` → `clearVersionMissing` + `action: 'resurrected'`, else `action: 'skipped'`.
+    - `recordRemoval(db, { watchRootId, sourceRelativePath }) → { action, version? }`: `findVersionByPath`
+      → found ⇒ `markVersionMissing`, `action: 'flagged'`; not found ⇒ `action: 'untracked'`. **Reachability
+      is NOT here** — the watcher decides whether to call this (keeps core fs-free).
+    - Folds in: **B1** path normalized to relative+`/` (done in watcher before calling), **B2** basename,
+      **B3** `savedAt = Math.floor(mtimeMs)` (done in watcher), **B4** add/change unified, **B6** resurrection.
+  - **B8 `src/main/log.ts`** — ~5-line logger wrapper (silenceable in tests) replacing the placeholder
+    `console.log`s. The global "no console.log" rule is treated as N/A for the Electron main process.
+- **Phase C — watcher hardening + wiring (integration; step 5 + step 6):**
+  - **C-queue (D17, in v1): serial event queue in the watcher.** Chain each `handleEvent` off the previous
+    (promise tail) so no two interleave. Kills three initial-scan hazards at once: same-new-project-name
+    race (two files → both `createProject` → UNIQUE throw), same-path race, and the FD/memory storm from
+    hashing the whole library in parallel. ~6 lines; real risk on the user's ~2,000-file library.
+  - **D2 `watcher.on('error', …)`** — chokidar emits `error` (perms, drive yanked mid-scan); unhandled can
+    crash. **D1 `watcher.close()` on app quit** — minor hygiene for M3 folder-reselect.
+  - **Step 5 wiring (`index.ts`):** `openDatabase(join(app.getPath('userData'),'reprise.db'))` →
+    `findWatchRootByPath(path) ?? createWatchRoot({ path })` → pass `db` + `watchRootId` + `rootPath` into
+    a widened `startWatcher`.
+  - **Step 6 (`watcher.ts`):** queued `handleEvent` computes `sourceRelativePath` (B1) + `savedAt` (B3) +
+    `fileHash`, then calls `recordUpsert`; on `unlink`, `fs.access(rootPath)` gate (B5) → reachable ⇒
+    `recordRemoval`, unreachable ⇒ nothing. Log the returned `action`.
+  - **C1 (optional, judgment): startup re-hash short-circuit** — if a version exists and
+    `Math.floor(mtimeMs) === stored savedAt`, skip the hash (still clear `sourceMissing` if flagged).
+    Optimization for big-library startup; can defer.
+  - **C4 (deferred to Mac): Logic `.logicx`/`.band` package mode** — the "resolve tracked unit" seam (map
+    inner-file event up to the package; hash the directory) slots into the watcher's fs layer; core
+    (`recordUpsert`/`recordRemoval`) is unchanged. Can't observe a package save on Windows (no Logic).
+
+## Data layer — Drizzle ORM on `node:sqlite` (decided mid-M2, 2026-06-30)
+
+> **Detour taken DELIBERATELY mid-Phase-A** (paused at A4 `isBackupPath`). Triggered by the raw-SQL repos
+> causing repeated, avoidable bugs (hand-aligned column / `?` / value lists drifting — bit us twice on the
+> `isBackup` add). User decided to fix the foundation now, **while the surface is small (3 repos)**, rather
+> than carry the fragility forward. This is the user's call, eyes open; not a stack switch.
+
+- **NOT a stack change — the locked stack holds.** SQLite, Electron, React, TypeScript all unchanged.
+  This swaps only the *access layer*: hand-written SQL strings → a typed layer. Postgres was floated and
+  **rejected** — it's a server DB, wrong for a local single-user desktop app (PLAN.md locks SQLite). The
+  real itch was "better ergonomics over the SQLite I already have," not "a bigger database."
+- **Two-layer mental model (this is what untangled the confusion):** Layer 1 = the *engine/driver* that
+  reads the `.db` file (`node:sqlite` vs `better-sqlite3` vs `libsql`); Layer 2 = the *typed code you write*
+  (Drizzle vs Kysely vs raw SQL). You pick one from each; they compose. Kysely is **not** an engine — it's
+  Drizzle's competitor at Layer 2 and would sit on the same Layer-1 engines.
+- **Layer 1 = `node:sqlite` (LOCKED). The deciding factor: no native module, ever.** `node:sqlite` is built
+  into Node/Electron — nothing to compile, `electron-rebuild`, or `asarUnpack`, and the *same* code runs in
+  vitest (plain Node) and in Electron. `better-sqlite3`/`libsql` are native modules → recurring per-build,
+  per-OS (Win+Mac) packaging tax + a vitest-vs-Electron ABI mismatch. For a solo dev shipping cross-platform,
+  "no native module" is a *permanent* durability win that outweighs `node:sqlite` being newer. (Research
+  confirmed `better-sqlite3` = the multi-day Electron yak-shave we were right to avoid.)
+- **Layer 2 = Drizzle (LOCKED, over Kysely).** User wanted "define the schema in ONE place, then read
+  `object.property`, like Rails." That's Drizzle. The lone Kysely advantage was "you write the SQL yourself
+  and learn it" — but the user is already comfortable with SQL + Rails and explicitly prioritized
+  **maintainability over learning reps**, which removes Kysely's edge. Drizzle gives: one schema file →
+  generated TS types (`$inferSelect`) → optional `drizzle-zod` validators (one source of truth, kills the
+  drift that caused the bugs), and `integer({ mode: 'boolean' })` auto-maps `0/1 ↔ true/false` (kills the
+  manual `? 1 : 0` + `z.coerce.boolean()`).
+- **Version: `drizzle-orm` pinned to `1.0.0-rc.4` (no caret).** The `drizzle-orm/node-sqlite` driver exists
+  **only in the 1.0-rc line** (stable 0.45.x lacks it). Accepted tradeoff: an rc dependency on a local
+  learning app, **pinned** (+ committed lockfile) so it can't drift; bump to `1.0.0` final when it lands
+  (a one-line change, ~weeks away — rc.4 API is effectively frozen). This is the *only* real cost of the
+  node:sqlite path and it's temporary. Drizzle moves faster than Kysely between versions → pinning matters.
+- **Spike GREEN (gate passed before migrating anything):** throwaway `tests/core/drizzle-spike.test.ts`
+  proved `drizzle-orm/node-sqlite` resolves, `drizzle({ client: new DatabaseSync() })` works on `:memory:`,
+  insert+select round-trips, and `mode: 'boolean'` returns a real `true`. Driver is **async** (`await`), so
+  repo functions become `async` (fine — the watcher's already async; tests gain `await`).
+- **Drizzle DSL is NOT Active Record (intentional).** Headless ORM: rows are plain typed data (no
+  `row.save()`), relations are fetched explicitly (`db.query.projects.findFirst({ with: { versions: true }})`),
+  no model callbacks. For a small app this is *more* maintainable than fat models; full Active Record
+  (TypeORM/MikroORM) was considered heavier/more-magic and **not** adopted.
+- **Migrations: `drizzle-kit` is NOT installed and NOT used (for now).** drizzle-kit (the Rails-migrations
+  equivalent) **does not support `node:sqlite`**. So table creation stays as the existing idempotent raw
+  `CREATE TABLE IF NOT EXISTS` in `db.ts`. Only `drizzle-orm` is a dependency (no `drizzle-kit`/`dotenv`/`tsx`
+  from the tutorial — those are standalone-demo scaffolding this project doesn't need). **FORWARD-NOTE:** once
+  v1 has shipped and users hold real `reprise.db` files with data, a schema change in v1.1 will need genuine
+  migrations — likely hand-written conditional `ALTER TABLE`s applied via `node:sqlite` `exec()`. Designed
+  then, not now.
+- **Zod retreats to true boundaries.** Drizzle types DB rows, so the on-every-read `Schema.parse(row)` becomes
+  redundant; keep Zod for genuinely untrusted input (IPC payloads, file paths) — or generate those validators
+  from the Drizzle schema via `drizzle-zod`.
+- **Migration plan (brick by brick, tests green after each):** (1) ✅ spike gate; (2) write `src/core/schema.ts`
+  (the one file: `projects`, `watch_roots`, `versions` + relations + `$inferSelect` types); (3) keep raw
+  `CREATE TABLE` in `db.ts`; (4) repoint `Version`/`Project`/`WatchRoot` types to `$inferSelect`; (5) migrate
+  repos smallest-first (`watchRootRepo` → `projectRepo` → `versionRepo`), green after each; (6) decide Zod's
+  boundary role. **THEN resume the watcher at A4 `isBackupPath`** (the only Phase-A brick left — it's pure, no
+  DB, unaffected by this migration).

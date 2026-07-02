@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractProjectBase } from '../../src/core/extractProjectBase'
+import { extractProjectBase } from '../../../src/core/versioning/extractProjectBase'
 
 const cases: [string, string][] = [
   ['take me away V0.als', 'take me away'],

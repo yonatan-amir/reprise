@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hashBuffer, hashFile } from '../../src/core/fileHash'
+import { hashBuffer, hashFile } from '../../../src/core/versioning/fileHash'
 import { rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
